@@ -1,0 +1,67 @@
+services:
+  db:
+    image: postgres:16
+    container_name: manager_library_db
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: secretpassword
+      POSTGRES_DB: manager_library
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - library_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U root -d manager_library"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  frontend:
+    build:
+      context: ../test-manager-library-3413974-app
+      dockerfile: Dockerfile
+    container_name: manager_library_frontend
+    ports:
+      - "4173:80"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - library_network
+
+  api:
+    build:
+      context: ../test-manager-library-3413974-api
+      dockerfile: Dockerfile
+    container_name: manager_library_api
+    ports:
+      - "8000:8000"
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_URL: http://localhost:8000
+      DB_CONNECTION: pgsql
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_DATABASE: manager_library
+      DB_USERNAME: root
+      DB_PASSWORD: secretpassword
+      ADMIN_USERNAME: admin
+      ADMIN_PASSWORD: Admin123!
+      SESSION_DRIVER: file
+      CACHE_STORE: file
+      QUEUE_CONNECTION: sync
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - library_network
+
+volumes:
+  pgdata:
+
+networks:
+  library_network:
+    driver: bridge
